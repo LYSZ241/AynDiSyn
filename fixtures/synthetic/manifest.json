@@ -1,0 +1,12 @@
+{
+  "synthetic": true,
+  "generator_version": 1,
+  "seed": 2026,
+  "cardinality": {
+    "cases": 100,
+    "symptoms": 48,
+    "acupoints": 24,
+    "diseases": 8,
+    "syndromes": 12
+  }
+}
