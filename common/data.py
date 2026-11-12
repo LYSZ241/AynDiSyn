@@ -1,4 +1,4 @@
-"""Strict loading and alignment of the bundled fictitious ID examples."""
+"""Strict loading and alignment of integer-only case datasets."""
 import json
 from pathlib import Path
 import random
@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_DATA = ROOT/'fixtures'/'synthetic'
+DEFAULT_DATA = ROOT/'datasets'/'numeric'
 
 
 def seed_everything(seed):
@@ -31,8 +31,9 @@ class Data:
     def __init__(self, path=DEFAULT_DATA, fold=0):
         self.path = Path(path)
         self.manifest = json.loads((self.path/'manifest.json').read_text(encoding='utf8'))
-        if self.manifest.get('synthetic') is not True:
-            raise ValueError('This public example only supports explicitly synthetic datasets')
+        if type(self.manifest.get('synthetic')) is not bool:
+            raise ValueError('Manifest must explicitly declare synthetic as true or false')
+        self.synthetic = self.manifest['synthetic']
         counts = self.manifest['cardinality']
         self.n_users, self.n_items = counts['symptoms'], counts['acupoints']
         lines = (self.path/'r01_cases_5col.txt').read_text(encoding='utf8').splitlines()
@@ -47,14 +48,16 @@ class Data:
             sizes = (self.n_users, counts['syndromes'], counts['diseases'], self.n_items, self.n_items)
             values = [parse_ids(text, size) for text, size in zip(fields, sizes)]
             symptoms, syndromes, diseases, main, adjunct = values
-            if not symptoms or not main or not adjunct or set(main) & set(adjunct):
-                raise ValueError('Synthetic rows require nonempty inputs and disjoint nonempty roles')
-            union = sorted(set(main) | set(adjunct))
+            if not symptoms or not (main or adjunct):
+                raise ValueError('Rows require symptoms and at least one acupoint across both roles')
             two = ordinary[row].split('\t')
-            if len(two) != 2 or parse_ids(two[0], self.n_users) != symptoms or parse_ids(two[1], self.n_items) != union:
+            if len(two) != 2:
+                raise ValueError('GCN requires two tab-separated columns')
+            acupoints = parse_ids(two[1], self.n_items)
+            if parse_ids(two[0], self.n_users) != symptoms or set(acupoints) != set(main) | set(adjunct):
                 raise ValueError('GCN and R01 rows do not align')
             self.cases.append(dict(symptom_ids=symptoms, syndrome_ids=syndromes, disease_ids=diseases,
-                                   main_ids=main, adjunct_ids=adjunct, acupoint_ids=union))
+                                   main_ids=main, adjunct_ids=adjunct, acupoint_ids=acupoints))
         folds = json.loads((self.path/'folds.json').read_text(encoding='utf8'))
         if len(folds) != 5 or not 0 <= fold < 5:
             raise ValueError('Expected five folds and fold index 0..4')

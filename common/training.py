@@ -1,4 +1,4 @@
-"""A small BCE training loop written solely for the public synthetic example."""
+"""A small generic BCE baseline; it does not reproduce the paper model."""
 import datetime
 import json
 from pathlib import Path
@@ -26,8 +26,11 @@ def evaluate(model, cases, n_items, device, ks, batch_size, mode):
 
 
 def display(prefix, metrics, ks):
+    def metric_text(value):
+        return 'N/A' if value is None else '%.5f' % value
+
     for role, values in metrics.items():
-        text = ' | '.join(name + ': ' + ', '.join('@%d=%.5f' % (k, values[str(k)][name]) for k in ks)
+        text = ' | '.join(name + ': ' + ', '.join('@%d=%s' % (k, metric_text(values[str(k)][name])) for k in ks)
                           for name in ('recall', 'precision', 'ndcg'))
         print(prefix + ' ' + role + ' ' + text, flush=True)
 
@@ -39,15 +42,17 @@ def run(args, mode, data_class, model_class):
     if device.type == 'cuda' and not torch.cuda.is_available():
         raise RuntimeError('CUDA unavailable; pass --device cpu')
     stamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-    output = Path(args.output_dir) / (mode + '_synthetic_demo_' + stamp)
+    output = Path(args.output_dir) / (mode + '_demo_' + stamp)
     output.mkdir(parents=True, exist_ok=False)
     folds = range(5) if args.all_folds else [args.fold]
     results = []
     for fold in folds:
         seed_everything(args.seed + fold)
         data = data_class(args.data_path, fold)
+        dataset_kind = 'synthetic' if data.synthetic else 'numeric'
+        protocol = dataset_kind + '_baseline_demo_not_paper_reproduction'
         if max(args.Ks) > data.n_items:
-            raise ValueError('Requested K exceeds number of synthetic candidates')
+            raise ValueError('Requested K exceeds number of candidates')
         model = model_class(data.n_users, data.n_items, args.embed_size).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
         loss_fn = torch.nn.BCEWithLogitsLoss()
@@ -64,24 +69,26 @@ def run(args, mode, data_class, model_class):
                 logits = model(ids, mask)
                 loss = sum(loss_fn(values, targets[name]) for name, values in logits.items())
                 if not torch.isfinite(loss):
-                    raise FloatingPointError('Non-finite synthetic-demo loss')
+                    raise FloatingPointError('Non-finite baseline-demo loss')
                 loss.backward()
                 optimizer.step()
                 total += float(loss.detach()) * len(batch)
             history.append({'epoch': epoch, 'loss': total / len(data.train)})
-            print(f'[synthetic_demo {mode} fold={fold}] epoch={epoch}/{args.epoch} loss={history[-1]["loss"]:.6f}', flush=True)
+            print(f'[{dataset_kind}_baseline_demo {mode} fold={fold}] epoch={epoch}/{args.epoch} loss={history[-1]["loss"]:.6f}', flush=True)
         train = evaluate(model, data.train, data.n_items, device, args.Ks, args.batch_size, mode)
         test = evaluate(model, data.test, data.n_items, device, args.Ks, args.batch_size, mode)
         display('train', train, args.Ks)
         display('test ', test, args.Ks)
-        record = dict(protocol='synthetic_demo_not_paper_reproduction', model=mode, fold=fold,
+        record = dict(protocol=protocol, synthetic=data.synthetic, model=mode, fold=fold,
                       epoch=args.epoch, train_cases=len(data.train), test_cases=len(data.test),
                       train=train, test=test, history=history)
         (output/f'fold_{fold}.json').write_text(json.dumps(record, indent=2)+'\n', encoding='utf8')
         if args.save_checkpoint:
-            torch.save({'protocol': record['protocol'], 'model_state': model.state_dict(),
+            torch.save({'protocol': record['protocol'], 'synthetic': data.synthetic, 'model_state': model.state_dict(),
                         'epoch': args.epoch, 'fold': fold}, output/f'fold_{fold}.pt')
         results.append(record)
-    (output/'summary.json').write_text(json.dumps({'protocol':'synthetic_demo_not_paper_reproduction', 'folds':results}, indent=2)+'\n', encoding='utf8')
-    print('synthetic_demo_outputs=' + str(output), flush=True)
+    (output/'summary.json').write_text(json.dumps({'protocol': results[0]['protocol'],
+                                                'synthetic': results[0]['synthetic'],
+                                                'folds': results}, indent=2)+'\n', encoding='utf8')
+    print('baseline_demo_outputs=' + str(output), flush=True)
     return results

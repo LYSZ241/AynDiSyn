@@ -1,0 +1,15 @@
+{
+  "synthetic": false,
+  "format_version": 1,
+  "dataset_version": "numeric_883",
+  "cardinality": {
+    "cases": 883,
+    "symptoms": 2296,
+    "acupoints": 303,
+    "diseases": 188,
+    "syndromes": 437
+  },
+  "index_base": 0,
+  "fold_seed": 2026,
+  "folds_preserved": true
+}

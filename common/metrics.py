@@ -1,4 +1,4 @@
-"""Standard binary-relevance ranking metrics for the synthetic demonstration."""
+"""Standard binary-relevance ranking metrics for the numeric baseline demo."""
 import numpy as np
 
 

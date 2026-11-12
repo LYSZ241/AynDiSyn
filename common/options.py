@@ -6,7 +6,7 @@ from .data import DEFAULT_DATA, ROOT
 
 
 def parse_args(argv=None):
-    parser = argparse.ArgumentParser(description='Synthetic-only public runnable example')
+    parser = argparse.ArgumentParser(description='Public numeric-data baseline demonstration; not the paper model')
     parser.add_argument('--data_path', type=Path, default=DEFAULT_DATA)
     parser.add_argument('--output_dir', type=Path, default=ROOT/'outputs')
     parser.add_argument('--fold', type=int, choices=range(5), default=0)

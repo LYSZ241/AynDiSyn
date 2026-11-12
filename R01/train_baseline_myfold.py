@@ -1,4 +1,4 @@
-"""Run the synthetic-only public demonstration."""
+"""Run the generic baseline using the selected numeric dataset."""
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))

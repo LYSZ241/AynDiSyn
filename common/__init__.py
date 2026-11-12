@@ -1,1 +1,1 @@
-"""Generic synthetic-demo helpers; research implementations are withheld."""
+"""Generic numeric-demo helpers; research implementations are withheld."""
